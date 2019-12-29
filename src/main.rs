@@ -42,7 +42,7 @@ async fn main() {
     
     // Format payloads, remove transparent pixels
     let mut payloads: Vec<String> = read().iter()
-    .filter(|px| px.p != "000000")
+    .filter(|px| px.p != "00000000")
     .map(|px| format!("PX {} {} {}\n", px.x, px.y, px.p))
     .collect();
     
@@ -72,7 +72,8 @@ async fn main() {
         }
     }
 
-    futures::stream::iter(0..connections_per_ip).for_each_concurrent(None, |_| work(x_offset.clone(), y_offset.clone(), hostname.clone()).map(drop)).await;
+    let tiles = payloads.chunks(payloads.len() / connections_per_ip).map(|c| c.concat()).collect::<Vec<String>>();
+    futures::stream::iter(0..connections_per_ip).for_each_concurrent(None, |c| work(x_offset.clone(), y_offset.clone(), hostname.clone(), tiles[c].clone()).map(drop)).await;
 }
 
 async fn bound_work(ip: std::net::Ipv4Addr, pixels: String, x: String, y: String, hostname: String) -> Result<(),std::io::Error> {
@@ -89,19 +90,18 @@ async fn bound_work(ip: std::net::Ipv4Addr, pixels: String, x: String, y: String
     }
 }
 
-async fn work(x: String, y: String, hostname: String) -> Result<(),std::io::Error> {
+async fn work(x: String, y: String, hostname: String, payload: String) -> Result<(),std::io::Error> {
     log!("Starting");
-    let pixels = read();
-    let mut raw_socket = tokio::net::TcpStream::connect(hostname).await?;
-    raw_socket.write_all(format!("OFFSET {} {}\n", x, y).as_ref()).await?;
+    //let pixels = read();
+    let mut raw_socket = tokio::net::TcpStream::connect(hostname).await.unwrap();
+    raw_socket.write_all(format!("OFFSET {} {}\n", x, y).as_ref()).await.unwrap();
+    //log!("{}", payload);
     loop {
-        for pixel in &pixels {
-            let payload = format!("PX {} {} {}\n", pixel.x, pixel.y, pixel.p);
-            raw_socket.write_all(payload.as_ref()).await?;
-        }
-        log!("Cycled");
+        raw_socket.write_all(payload.as_ref()).await.unwrap();
+        //log!("Cycled");
     }
 }
+
 
 fn read() -> Vec<Px> {
     serde_json::from_slice(&std::fs::read("img.json").unwrap()).unwrap()
