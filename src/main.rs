@@ -1,4 +1,3 @@
-#![feature(async_await)]
 use tokio::prelude::*;
 use tokio::net::{TcpStream};
 use serde_derive::*;
@@ -40,14 +39,12 @@ async fn main() {
     let x_offset = args[2].clone();
     let y_offset = args[3].clone();
     let hostname = args[4].clone();
-
+    
     // Format payloads, remove transparent pixels
-    let mut payloads: Vec<String> = read().iter().filter_map(|px| {
-        if px.p != "000000" {
-            return Some(format!("PX {} {} {}\n", px.x, px.y, px.p));
-        }
-        None
-    }).collect();
+    let mut payloads: Vec<String> = read().iter()
+    .filter(|px| px.p != "000000")
+    .map(|px| format!("PX {} {} {}\n", px.x, px.y, px.p))
+    .collect();
     
     // Retrieve IP addresses
     if let Ok(addrs) = get_if_addrs() {
