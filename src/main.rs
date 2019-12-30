@@ -73,7 +73,7 @@ async fn main() {
     }
 
     let tiles = payloads.chunks(payloads.len() / connections_per_ip).map(|c| c.concat()).collect::<Vec<String>>();
-    futures::stream::iter(0..connections_per_ip).for_each_concurrent(None, |c| work(x_offset.clone(), y_offset.clone(), hostname.clone(), tiles[c].clone()).map(drop)).await;
+    futures::stream::iter(0..connections_per_ip).for_each_concurrent(None, |c| tokio::spawn(work(x_offset.clone(), y_offset.clone(), hostname.clone(), tiles[c].clone())).map(drop)).await;
 }
 
 async fn bound_work(ip: std::net::Ipv4Addr, pixels: String, x: String, y: String, hostname: String) -> Result<(),std::io::Error> {
@@ -95,6 +95,7 @@ async fn work(x: String, y: String, hostname: String, payload: String) -> Result
     //let pixels = read();
     let mut raw_socket = tokio::net::TcpStream::connect(hostname).await.unwrap();
     raw_socket.write_all(format!("OFFSET {} {}\n", x, y).as_ref()).await.unwrap();
+    log!("Stream open");
     //log!("{}", payload);
     loop {
         raw_socket.write_all(payload.as_ref()).await.unwrap();
